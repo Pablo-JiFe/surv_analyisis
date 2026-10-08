@@ -1,10 +1,5 @@
-install.packages("survival")
-install.packages("survminer")
 
-library(ggplot2)
-library(dplyr)
-library(survival)
-library(survminer)
+pacman::p_load("survival",  "survminer", "ggplot2", "dplyr" )
 
 # Para que sea lo mismo para todos
 
@@ -41,23 +36,14 @@ treatment_coh <-
                    sample(c(1, 2, 3, 4), 100, replace = TRUE, prob = c(0.1, 0.2, 0.3, 0.4)),
                    sample(c(1, 2, 3, 4), 100, replace = TRUE, prob = c(0.1, 0.3, 0.4, 0.2))
     ),
-    edad = ifelse(evento == 1,
+    edad = abs(ifelse(evento == 1,
                   rnorm(100, mean = 60, sd = 25),
                   rnorm(100, mean = 40, sd = 30)
-    ),
-    enf_renal =  ifelse(enf_cardiaca == 1,
-                        sample(c(1, 0), 100, replace = TRUE, prob = c(0.95, 0.05)),
-                        sample(c(1, 0), 100, replace = TRUE, prob = c(0.05, 0.95))
-    ),
-    marcador_sangre = ifelse(evento == 0 & edad > 50,
-                      1,
-                      0
-                      ),
-    marcador_clinico = ifelse(evento == 0 & tiempo > 80 | evento == 1 & tiempo < 80,
-                      1,
-                      0
-    )
+    ))
   )
+
+
+head(treatment_coh)
 
 # Para todos los subsequentes analysis se requiere de una formula
 # La formula consiste en un objeto de supervivencia surv_obj
@@ -67,13 +53,14 @@ treatment_coh <-
 
 surv_obj <- Surv(time = treatment_coh$tiempo, event = treatment_coh$evento)
 
+
 # Objeto de Kaplan meier independiente de grupo
 
 fit_km <- survfit(formula = surv_obj ~ treatment_coh$global, data = treatment_coh)
 
 # Graficar
 
-ggsurvplot(fit_km,
+ggsurvplot(fit = fit_km,
            conf.int = FALSE,
            ggtheme = theme_classic(base_size = 30))
 
@@ -85,12 +72,17 @@ fit_km_grupo <- survfit(formula = surv_obj ~ treatment_coh$grupo, data = treatme
 
 ggsurvplot(
   fit_km_grupo,
-  ggtheme = theme_classic(base_size = 25)
+  ggtheme = theme_classic(base_size = 25),
+  pval = TRUE,
+  risk.table = TRUE,
+  break.time.by = 50,
+  break.y.by = 0.5,
+  palette = c("red", "blue")
            )
 
 # Log rank test comparando medicamento contra no medicamento
 
-log_rank_grupo <- survdiff(surv_obj ~ grupo, data = treatment_coh)
+log_rank_grupo <- survdiff(formula = surv_obj ~ grupo, data = treatment_coh)
 
 print(log_rank_grupo)
 
@@ -103,7 +95,7 @@ print(log_rank_grado)
 
 # Regresion tipo Cox simple
 
-cox_univariado <- coxph(surv_obj ~ grupo, data = treatment_coh)
+cox_univariado <- coxph(formula = surv_obj ~ grupo, data = treatment_coh)
 
 print(cox_univariado)
 
@@ -118,44 +110,6 @@ summary(cox_multivariado1)
 cox_multivariado2 <- coxph(surv_obj ~ grupo + enf_cardiaca + edad, data = treatment_coh)
 
 summary(cox_multivariado2)
-
-# Multicolinearidad
-
-cox_multicolinearidad <- coxph(surv_obj ~ grupo + enf_cardiaca + enf_renal, data = treatment_coh)
-
-summary(cox_multicolinearidad)
-
-# Separación
-
-coxph(surv_obj ~ grupo + marcador_sangre, data = treatment_coh)
-
-# Supuesto de proporcionalidad
-
-# Cumple
-
-supuesto_ph <- cox.zph(cox_multivariado1)
-
-ggcoxzph(supuesto_ph)
-
-# No cumple
-
-cox_supuesto <- coxph(surv_obj ~ grupo + marcador_clinico, data = treatment_coh)
-
-supuesto_ph_no <- cox.zph(cox_supuesto)
-
-print(supuesto_ph_no)
-
-ggcoxzph(supuesto_ph_no)
-
-# Arreglado
-
-cox_supuesto_arreglado <- coxph(surv_obj ~ grupo + strata(marcador_clinico), data = treatment_coh)
-
-supuesto_ph_arreglado <- cox.zph(cox_supuesto_arreglado)
-
-print(supuesto_ph_arreglado)
-
-ggcoxzph(supuesto_ph_arreglado)
 
 # Transcriptomica
 
@@ -207,6 +161,7 @@ treat_trans <-
   treat_trans %>% 
   select(-c(evento, 
             tiempo))
+
 # Modelo cox
 
 summary(coxph(surv_obj_trans ~ ., data = treat_trans))
