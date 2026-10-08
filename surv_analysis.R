@@ -29,8 +29,8 @@ treatment_coh <-
                    sample(c(1, 0), 100, replace = TRUE, prob = c(0.75, 0.25))
     ),
     enf_cardiaca = ifelse(evento == 1, 
-                         sample(c(1, 0), 100, replace = TRUE, prob = c(0.45, 0.55)),
-                         sample(c(1, 0), 100, replace = TRUE, prob = c(0.55, 0.45))
+                         sample(c("Enfermo", "No enfermo"), 100, replace = TRUE, prob = c(0.45, 0.55)),
+                         sample(c("Enfermo", "No enfermo"), 100, replace = TRUE, prob = c(0.55, 0.45))
     ),
     grado = ifelse(evento == 1,
                    sample(c(1, 2, 3, 4), 100, replace = TRUE, prob = c(0.1, 0.2, 0.3, 0.4)),
