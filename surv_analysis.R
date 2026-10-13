@@ -1,5 +1,14 @@
 
+
+# 1. Cargar paquetes -------------------------------------------------------
+
+
 pacman::p_load("survival",  "survminer", "ggplot2", "dplyr" )
+
+
+# 2.- Generar datos para este ejercicio -----------------------------------
+
+# Clínicos
 
 # Para que sea lo mismo para todos
 
@@ -43,7 +52,49 @@ treatment_coh <-
   )
 
 
+# Transcriptomica
+
+set.seed(37)
+
+# Simulando datos de transcriptomica centrados y normalizados
+
+transcriptomica_sim <- 
+  data.frame(
+    pacientes = treatment_coh$pacientes,
+    CD20 = rnorm(200, mean = 0, sd = 1),
+    TNF = rnorm(200, mean = 0, sd = 1),
+    APOE = rnorm(200, mean = 0, sd = 1),
+    EGFR = rnorm(200, mean = 0, sd = 1),
+    ESR1 = rnorm(200, mean = 0, sd = 1)
+  )
+
+# Junto datos y agrego genes a proposito para que salgan positivos
+
+treat_trans <- 
+  treatment_coh %>% 
+  select(pacientes,
+         evento,
+         tiempo) %>% 
+  left_join(transcriptomica_sim, by = "pacientes") %>% 
+  tibble::column_to_rownames("pacientes") %>% 
+  mutate(
+    NFKB1 = ifelse(evento == 1,
+                   rnorm(100, mean = - 0.8, sd = 0.8),
+                   rnorm(100, mean = 0.2, sd = 0.8)
+    ),
+    IL10 = ifelse(evento == 1,
+                  rnorm(100, mean = 0.2, sd = 0.8),
+                  rnorm(100, mean = - 0.8, sd = 0.8)
+    ),
+    ESR1 = ifelse(evento == 1,
+                  rnorm(100, mean = 0.1, sd = 0.9),
+                  rnorm(100, mean = - 0.9, sd = 0.9)
+    )
+  )
+
+
 head(treatment_coh)
+head(treat_trans)
 
 # Para todos los subsequentes analysis se requiere de una formula
 # La formula consiste en un objeto de supervivencia surv_obj
@@ -52,6 +103,10 @@ head(treatment_coh)
 # Primero para hacer el surv_obj, este sera util para todo lo que sigue
 
 surv_obj <- Surv(time = treatment_coh$tiempo, event = treatment_coh$evento)
+
+
+
+# 3.- Curvas Kaplan Meier -------------------------------------------------
 
 
 # Objeto de Kaplan meier independiente de grupo
@@ -80,6 +135,10 @@ ggsurvplot(
   palette = c("red", "blue")
            )
 
+
+# 4.- Log rank test -------------------------------------------------------
+
+
 # Log rank test comparando medicamento contra no medicamento
 
 log_rank_grupo <- survdiff(formula = surv_obj ~ grupo, data = treatment_coh)
@@ -92,6 +151,10 @@ print(log_rank_grupo)
 log_rank_grado <- survdiff(surv_obj ~ grado, data = treatment_coh)
 
 print(log_rank_grado)
+
+
+# 5.- Cox -----------------------------------------------------------------
+
 
 # Regresion tipo Cox simple
 
@@ -111,45 +174,6 @@ cox_multivariado2 <- coxph(surv_obj ~ grupo + enf_cardiaca + edad, data = treatm
 
 summary(cox_multivariado2)
 
-# Transcriptomica
-
-set.seed(37)
-
-# Simulando datos de transcriptomica centrados y normalizados
-
-transcriptomica_sim <- 
-  data.frame(
-  pacientes = treatment_coh$pacientes,
-  CD20 = rnorm(200, mean = 0, sd = 1),
-  TNF = rnorm(200, mean = 0, sd = 1),
-  APOE = rnorm(200, mean = 0, sd = 1),
-  EGFR = rnorm(200, mean = 0, sd = 1),
-  ESR1 = rnorm(200, mean = 0, sd = 1)
-  )
-
-# Junto datos y agrego genes a proposito para que salgan positivos
-
-treat_trans <- 
-  treatment_coh %>% 
-  select(pacientes,
-         evento,
-         tiempo) %>% 
-  left_join(transcriptomica_sim, by = "pacientes") %>% 
-  tibble::column_to_rownames("pacientes") %>% 
-  mutate(
-    NFKB1 = ifelse(evento == 1,
-                   rnorm(100, mean = - 0.8, sd = 0.8),
-                   rnorm(100, mean = 0.2, sd = 0.8)
-    ),
-    IL10 = ifelse(evento == 1,
-                  rnorm(100, mean = 0.2, sd = 0.8),
-                  rnorm(100, mean = - 0.8, sd = 0.8)
-                  ),
-    ESR1 = ifelse(evento == 1,
-                  rnorm(100, mean = 0.1, sd = 0.9),
-                  rnorm(100, mean = - 0.9, sd = 0.9)
-    )
-  )
 
 # surv_obj
 
@@ -165,3 +189,4 @@ treat_trans <-
 # Modelo cox
 
 summary(coxph(surv_obj_trans ~ ., data = treat_trans))
+
