@@ -1,100 +1,11 @@
-
-
 # 1. Cargar paquetes -------------------------------------------------------
+pacman::p_load("survival",  "survminer", "ggplot2", "dplyr", "vroom" )
 
 
-pacman::p_load("survival",  "survminer", "ggplot2", "dplyr" )
+# 2.- Leer los datos para este ejercicio -----------------------------------
 
-
-# 2.- Generar datos para este ejercicio -----------------------------------
-
-# Clínicos
-
-# Para que sea lo mismo para todos
-
-set.seed(37)
-
-# El "dataset" simulado de pacientes
-
-treatment_coh <- 
-  data.frame(
-  pacientes = paste0("p", seq(1, 200)),
-  
-  global = rep(x = 1, 200),
-  
-  grupo = sample(c("Medicamento", "Sin medicamento"), 200, replace = TRUE, prob = c(0.5, 0.5)),
-  
-  tiempo = rexp(200, rate = 0.5) * 20
-  
-) %>% 
-  mutate(
-    tiempo = ifelse(
-      tiempo < 0,
-                    abs(tiempo),
-                    tiempo
-                    ),
-    evento = ifelse(grupo == "Medicamento",
-                   sample(c(1, 0), 100, replace = TRUE, prob = c(0.25, 0.75)),
-                   sample(c(1, 0), 100, replace = TRUE, prob = c(0.75, 0.25))
-    ),
-    enf_cardiaca = ifelse(evento == 1, 
-                         sample(c("Enfermo", "No enfermo"), 100, replace = TRUE, prob = c(0.45, 0.55)),
-                         sample(c("Enfermo", "No enfermo"), 100, replace = TRUE, prob = c(0.55, 0.45))
-    ),
-    grado = ifelse(evento == 1,
-                   sample(c(1, 2, 3, 4), 100, replace = TRUE, prob = c(0.1, 0.2, 0.3, 0.4)),
-                   sample(c(1, 2, 3, 4), 100, replace = TRUE, prob = c(0.1, 0.3, 0.4, 0.2))
-    ),
-    edad = abs(ifelse(evento == 1,
-                  rnorm(100, mean = 60, sd = 25),
-                  rnorm(100, mean = 40, sd = 30)
-    ))
-  )
-
-
-# Transcriptomica
-
-set.seed(37)
-
-# Simulando datos de transcriptomica centrados y normalizados
-
-transcriptomica_sim <- 
-  data.frame(
-    pacientes = treatment_coh$pacientes,
-    CD20 = rnorm(200, mean = 0, sd = 1),
-    TNF = rnorm(200, mean = 0, sd = 1),
-    APOE = rnorm(200, mean = 0, sd = 1),
-    EGFR = rnorm(200, mean = 0, sd = 1),
-    ESR1 = rnorm(200, mean = 0, sd = 1)
-  )
-
-# Junto datos y agrego genes a proposito para que salgan positivos
-
-treat_trans <- 
-  treatment_coh %>% 
-  select(pacientes,
-         evento,
-         tiempo) %>% 
-  left_join(transcriptomica_sim, by = "pacientes") %>% 
-  tibble::column_to_rownames("pacientes") %>% 
-  mutate(
-    NFKB1 = ifelse(evento == 1,
-                   rnorm(100, mean = - 0.8, sd = 0.8),
-                   rnorm(100, mean = 0.2, sd = 0.8)
-    ),
-    IL10 = ifelse(evento == 1,
-                  rnorm(100, mean = 0.2, sd = 0.8),
-                  rnorm(100, mean = - 0.8, sd = 0.8)
-    ),
-    ESR1 = ifelse(evento == 1,
-                  rnorm(100, mean = 0.1, sd = 0.9),
-                  rnorm(100, mean = - 0.9, sd = 0.9)
-    )
-  )
-
-
-head(treatment_coh)
-head(treat_trans)
+treatment_coh <- vroom( file = "https://data.biofreelancer.com/survivalcoh" )
+treat_trans   <- vroom( file = "https://data.biofreelancer.com/survivaltrans" )
 
 # Para todos los subsequentes analysis se requiere de una formula
 # La formula consiste en un objeto de supervivencia surv_obj
